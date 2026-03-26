@@ -16,6 +16,10 @@ qt_add_qml_module(appOmenNotes
     URI OmenNotes
     QML_FILES
         Main.qml
+        SOURCES canvas/DrawingCanvas.h
+        SOURCES canvas/DrawingCanvas.cpp
+        QML_FILES workspace.qml
+        QML_FILES WelcomeScreen.qml
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

@@ -1,45 +1,31 @@
 import QtQuick
-import QtQuick.Controls 2.15
-import QtQuick.Window 2.15
-import QtQuick.Layouts 2.15
+import QtQuick.Controls
 
 Window {
-    id: window
-    width: 640
-    height: 480
+    width: 1000
+    height: 600
     visible: true
-    title: qsTr("OmenNotes")
+    title: qsTr("Omen")
 
-    GridLayout {
-        id: gridLayout
-        x: 0
-        y: 0
-        width: 640
-        height: 480
-        flow: GridLayout.LeftToRight
-        layoutDirection: Qt.LeftToRight
-        rowSpacing: 1
-        columnSpacing: 1
-        rows: 3
-        columns: 3
+    StackView {
+        id: stackView
+        anchors.fill: parent
 
-        Button {
-            id: button
-            text: qsTr("Yo")
-            icon.cache: true
-            checked: false
-            highlighted: true
-            flat: false
-            display: AbstractButton.TextBesideIcon
-            hoverEnabled: true
-            icon.height: 41
-            icon.width: 43
-            icon.color: "#ff0000"
+        // This is the very first screen the app shows when it launches
+        initialItem: "WelcomeScreen.qml"
+
+        // Optional: Add a smooth fade/slide transition when switching screens
+        pushEnter: Transition {
+            PropertyAnimation { property: "opacity"; from: 0; to: 1; duration: 200 }
         }
-
-        CheckBox {
-            id: checkBox
-            text: qsTr("Check Box")
+        pushExit: Transition {
+            PropertyAnimation { property: "opacity"; from: 1; to: 0; duration: 200 }
+        }
+        popEnter: Transition {
+            PropertyAnimation { property: "opacity"; from: 0; to: 1; duration: 200 }
+        }
+        popExit: Transition {
+            PropertyAnimation { property: "opacity"; from: 1; to: 0; duration: 200 }
         }
     }
 }
