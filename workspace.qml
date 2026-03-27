@@ -35,14 +35,58 @@ Item {
                 color: "#888888"
             }
 
-            Button {
-                text: "← Back to Menu"
+            // --- CUSTOM ANIMATED BACK BUTTON ---
+            Rectangle {
+                id: backBtn
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottomMargin: 20
+                anchors.bottomMargin: 30 // Lifted it up slightly so it breathes
 
-                onClicked: {
-                    root.StackView.view.pop()
+                width: 180
+                height: 46
+                radius: 23 // Perfect pill shape (Half of 46)
+
+                // Solid white resting state so it pops off the gray sidebar
+                color: backMouse.pressed ? "#555555" : (backMouse.containsMouse ? "#e8e8e8" : "#ffffff")
+                border.color: backMouse.pressed ? "#555555" : "#cccccc"
+                border.width: 1
+
+                // The tactile "Squish" physics
+                scale: backMouse.pressed ? 0.96 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
+                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                // Using a Row to perfectly align the arrow and text
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 8
+
+                    Text {
+                        text: "⟵" // Elegant long arrow
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: backMouse.pressed ? "#ffffff" : "#666666"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Text {
+                        text: "Back to Menu"
+                        font.pixelSize: 15
+                        font.bold: true
+                        color: backMouse.pressed ? "#ffffff" : "#666666"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                MouseArea {
+                    id: backMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor // Gives you the hand pointer!
+                    onClicked: {
+                        root.StackView.view.pop()
+                    }
                 }
             }
         }
@@ -56,12 +100,37 @@ Item {
             property real zoomLevel: 1.0
             property string activeTool: "pen"      // Can be "pen", "eraser", or "stroke_eraser"
             property color activeColor: "#000000"
-            // --- THE SCROLLABLE AREA ---
-            ScrollView {
+            // --- THE SCROLLABLE AREA (Optimized for Trackpad & Mouse) ---
+            Flickable {
                 id: scroller
                 anchors.fill: parent
                 clip: true
 
+                contentWidth: pageColumn.width
+                contentHeight: pageColumn.height
+
+                ScrollBar.vertical: ScrollBar {}
+                ScrollBar.horizontal: ScrollBar {}
+
+                // --- SMART SCROLLING ENGINE ---
+                WheelHandler {
+                    onWheel: function(event) {
+                        // 1. Is this a Trackpad? (Trackpads output pixelDelta)
+                        if (event.pixelDelta.y !== 0 || event.pixelDelta.x !== 0) {
+                            // Tell the handler to ignore it and let Flickable's native,
+                            // highly-optimized C++ physics engine take over completely!
+                            event.accepted = false
+                            return
+                        }
+
+                        // 2. It's a standard "clicky" Mouse Wheel!
+                        // We do a crisp, instant jump of 150 pixels per click. Zero lag.
+                        let jump = (event.angleDelta.y / 120) * 150
+
+                        let maxY = Math.max(0, scroller.contentHeight - scroller.height)
+                        scroller.contentY = Math.max(0, Math.min(maxY, scroller.contentY - jump))
+                    }
+                }
                 Column {
                     id: pageColumn
                     width: Math.max(scroller.width, ((scroller.width - 60) * canvasArea.zoomLevel) + 60)

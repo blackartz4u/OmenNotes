@@ -1,4 +1,6 @@
 #include "DrawingCanvas.h"
+#include <QCursor>
+#include <QPixmap>
 
 DrawingCanvas::DrawingCanvas(QQuickItem *parent) : QQuickPaintedItem(parent)
 {
@@ -8,6 +10,21 @@ DrawingCanvas::DrawingCanvas(QQuickItem *parent) : QQuickPaintedItem(parent)
     m_internalSize = QSize(1536, 2048);
     m_canvasBuffer = QImage(m_internalSize, QImage::Format_ARGB32_Premultiplied);
     m_canvasBuffer.fill(Qt::transparent);
+    // --- CUSTOM DOT CURSOR ---
+    // 1. Create a tiny 8x8 pixel transparent square
+    QPixmap dotCursor(4, 4);
+    dotCursor.fill(Qt::transparent);
+
+    // 2. Paint a smooth dark gray circle inside it
+    QPainter cursorPainter(&dotCursor);
+    cursorPainter.setRenderHint(QPainter::Antialiasing);
+    cursorPainter.setBrush(QColor("#444444")); // Dark gray
+    cursorPainter.setPen(Qt::NoPen);
+    cursorPainter.drawEllipse(0, 0, 4, 4);
+    cursorPainter.end();
+    // 3. Set the "hotspot" (the exact pixel that clicks) to the center (4, 4)
+    // and give it to the operating system!
+    setCursor(QCursor(dotCursor, 2, 2));
 }
 
 void DrawingCanvas::paint(QPainter *painter)
