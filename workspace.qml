@@ -3,71 +3,60 @@ import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 import OmenNotes.Canvas
+
 Item {
     id: root
-    anchors.fill: parent
+    // Notice: NO 'anchors.fill: parent' here to keep the StackView happy!
+
+    // --- 1. THE SMART LIST ---
+    // This tracks our pages and safely lives at the very top of the app
     ListModel {
         id: pageModel
-        ListElement {} // We start the app with exactly 1 empty item (Page 1)
+
+        ListElement {pageIndex: 1} // Start with exactly 1 empty page
     }
-    // SplitView allows the user to drag the divider to resize the sidebar
+
+    // --- 2. THE MAIN LAYOUT ---
     SplitView {
         anchors.fill: parent
         orientation: Qt.Horizontal
 
-        // 1. The Sidebar (Left pane)
+        // --- LEFT SIDEBAR ---
         Rectangle {
             id: sidebar
-            SplitView.preferredWidth: 250 // Starting width
-            SplitView.minimumWidth: 150   // Prevent making it too small
-            SplitView.maximumWidth: 400   // Prevent making it too large
-            color: "#ffe6cc"              // Standard sidebar color
+            SplitView.preferredWidth: 250
+            SplitView.minimumWidth: 150
+            SplitView.maximumWidth: 400
+            color: "#f3f3f3"
 
-            // A placeholder text for now
             Label {
                 anchors.centerIn: parent
                 text: "Notes List"
                 color: "#888888"
             }
+
             Button {
-                contentItem: Text {
-                    text: "Back"
-                    font.pixelSize: 16
-                    font.bold: true
-                    color: parent.down ? "#ffffff" : "#333333" // White when clicked
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
+                text: "← Back to Menu"
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottomMargin: 20
+
                 onClicked: {
-                    // This tells the StackView to throw away the current card and go back one step
                     root.StackView.view.pop()
-                }
-                background: Rectangle {
-                    radius: 10
-
-                    // Logic: If clicked -> Purple. If hovered -> Light Gray. Else -> White.
-                    color: parent.down ? "#9e1fff" : (parent.hovered ? "#c99f75" : "#ffdfbf")
-                    border.color: "#dddddd"
-                    border.width: 1
-
-                    // This is the magic that makes the color change fluid instead of instant!
-                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
             }
         }
 
-        // 2. The Canvas Area (Right pane)
+        // --- RIGHT CANVAS AREA ---
         Rectangle {
             id: canvasArea
             SplitView.fillWidth: true
             color: "#e0e0e0"
-
+            clip: true
             property real zoomLevel: 1.0
-
-            // --- THE SCROLLABLE AREA (Now fills the whole screen) ---
+            property string activeTool: "pen"      // Can be "pen", "eraser", or "stroke_eraser"
+            property color activeColor: "#000000"
+            // --- THE SCROLLABLE AREA ---
             ScrollView {
                 id: scroller
                 anchors.fill: parent
@@ -79,10 +68,13 @@ Item {
                     spacing: 30
                     padding: 30
 
+                    // --- THE PAGES ---
                     Repeater {
                         model: pageModel
 
                         delegate: Rectangle {
+                            id: pageRect // 1. Put the ID back!
+
                             width: (scroller.width - 60) * canvasArea.zoomLevel
                             height: width * 1.3333
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -91,85 +83,94 @@ Item {
                             border.width: 1
                             radius: 10
                             clip: true
+
+                            // 2. Start completely invisible and pushed down
+                            opacity: 0
+                            transform: Translate { id: slideTransform; y: 150 }
+
+                            Component.onCompleted: entryAnim.start()
+
+                            // 3. Explicitly tell the animation to target 'pageRect'
+                            ParallelAnimation {
+                                id: entryAnim
+                                NumberAnimation {
+                                    target: pageRect; // <-- THE MISSING LINK!
+                                    property: "opacity"; to: 1.0;
+                                    duration: 400; easing.type: Easing.OutQuart
+                                }
+                                NumberAnimation {
+                                    target: slideTransform; property: "y"; to: 0;
+                                    duration: 400; easing.type: Easing.OutQuart
+                                }
+                            }
+
                             DrawingCanvas {
                                 anchors.fill: parent
                             }
                         }
                     }
 
-                    // --- CUSTOM ANIMATED ADD PAGE BUTTON ---
+                    // --- ADD PAGE BUTTON ---
                     Button {
-                        id: addPageBtn // Give it an ID so we can easily check its states
+                        id: addPageBtn
                         text: "+ Add New Page"
-
-                        // It still scales perfectly with the zoom!
                         width: (scroller.width - 60) * canvasArea.zoomLevel
                         height: 60
                         anchors.horizontalCenter: parent.horizontalCenter
 
-                        onClicked: {
-                            pageModel.append({})
-                        }
+                        onClicked: pageModel.append({pageIndex: pageModel.count + 1})
 
-                        // 1. Custom Text Animation
                         contentItem: Text {
                             text: addPageBtn.text
                             font.pixelSize: 18
                             font.bold: true
-                            // Turns white when pressed, gray otherwise
                             color: addPageBtn.down ? "#ffffff" : "#666666"
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-
                             Behavior on color { ColorAnimation { duration: 150 } }
                         }
 
-                        // 2. Custom Background Animation
                         background: Rectangle {
-                            radius: 15 // Nice, soft rounded corners
-
-                            // Dark gray when clicked, light gray when hovered, faint gray when resting
+                            radius: 15
                             color: addPageBtn.down ? "#555555" : (addPageBtn.hovered ? "#e8e8e8" : "#fdfdfd")
                             border.color: addPageBtn.down ? "#555555" : "#cccccc"
                             border.width: 1
-
                             Behavior on color { ColorAnimation { duration: 150 } }
                             Behavior on border.color { ColorAnimation { duration: 150 } }
                         }
 
-                        // 3. The "Squish" Animation!
-                        // When pressed, it shrinks to 98% of its size. When released, it bounces back.
                         scale: addPageBtn.down ? 0.98 : 1.0
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: 100
-                                easing.type: Easing.OutQuad
-                            }
-                        }
+                        Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
                     }
                 }
             }
+            // --- CUSTOM ANIMATED ZOOM BUTTON ---
+            component ZoomButton : Rectangle {
+                property string text: ""
+                signal clicked()
 
-            // --- CUSTOM ANIMATED ZOOM BUTTON ---
-            // --- CUSTOM ANIMATED ZOOM BUTTON ---
-            component ZoomButton : Button {
-                Layout.preferredWidth: 26  // Shrunk from 32 to 26
-                Layout.preferredHeight: 26
+                // implicitWidth guarantees the layout will NEVER stretch it
+                implicitWidth: 26
+                implicitHeight: 26
                 Layout.alignment: Qt.AlignHCenter
 
-                contentItem: Text {
+                radius: 13
+                color: zoomMouse.pressed ? "#555555" : (zoomMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    anchors.centerIn: parent
                     text: parent.text
-                    font.pixelSize: 16     // Smaller text
+                    font.pixelSize: 16
                     font.bold: true
-                    color: parent.down ? "#ffffff" : "#666666"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                    color: zoomMouse.pressed ? "#ffffff" : "#666666"
                 }
 
-                background: Rectangle {
-                    radius: 13 // Perfectly circular (Half of 26)
-                    color: parent.down ? "#555555" : (parent.hovered ? "#e0e0e0" : "transparent")
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                MouseArea {
+                    id: zoomMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: parent.clicked()
                 }
             }
 
@@ -177,11 +178,11 @@ Item {
             Rectangle {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 15 // Tucked slightly closer to the wall
+                anchors.leftMargin: 15
 
-                width: 36   // Ultra-thin! (Was 50)
-                height: 180 // Shorter! (Was 250)
-                radius: 18  // Half of width for the perfect pill shape
+                width: 36
+                height: 180
+                radius: 18
                 color: "#ffffff"
                 border.color: "#dcdcdc"
                 border.width: 1
@@ -193,7 +194,6 @@ Item {
                     spacing: 2
 
                     Label {
-                        // Removed the "%" symbol to keep the UI perfectly narrow
                         text: Math.round(canvasArea.zoomLevel * 100)
                         font.pixelSize: 10
                         font.bold: true
@@ -202,12 +202,8 @@ Item {
                         Layout.bottomMargin: 4
                     }
 
-                    ZoomButton {
-                        text: "+"
-                        onClicked: zoomSlider.value = Math.min(3.0, zoomSlider.value + 0.1)
-                    }
+                    ZoomButton { text: "+"; onClicked: zoomSlider.value = Math.min(3.0, zoomSlider.value + 0.1) }
 
-                    // --- CUSTOM ULTRA-THIN SLIDER ---
                     Slider {
                         id: zoomSlider
                         orientation: Qt.Vertical
@@ -218,18 +214,14 @@ Item {
                         value: canvasArea.zoomLevel
                         onValueChanged: canvasArea.zoomLevel = value
 
-                        // 1. The Thin Track
                         background: Rectangle {
                             x: zoomSlider.leftPadding + (zoomSlider.availableWidth - width) / 2
                             y: zoomSlider.topPadding
-                            implicitWidth: 4 // A 4-pixel thin line!
-                            implicitHeight: 100
-                            width: implicitWidth
+                            implicitWidth: 4
                             height: zoomSlider.availableHeight
                             radius: 2
                             color: "#eeeeee"
 
-                            // The filled portion of the track
                             Rectangle {
                                 width: parent.width
                                 height: zoomSlider.position * parent.height
@@ -239,7 +231,6 @@ Item {
                             }
                         }
 
-                        // 2. The Tiny Handle
                         handle: Rectangle {
                             x: zoomSlider.leftPadding + (zoomSlider.availableWidth - width) / 2
                             y: zoomSlider.topPadding + zoomSlider.visualPosition * (zoomSlider.availableHeight - height)
@@ -252,12 +243,156 @@ Item {
                         }
                     }
 
-                    ZoomButton {
-                        text: "−"
-                        onClicked: zoomSlider.value = Math.max(0.2, zoomSlider.value - 0.1)
+                    ZoomButton { text: "−"; onClicked: zoomSlider.value = Math.max(0.2, zoomSlider.value - 0.1) }
+                }
+            }
+
+            // --- CUSTOM ACTION BUTTON (Undo/Redo) ---
+            component ActionButton : Rectangle {
+                property string text: ""
+                signal clicked()
+
+                implicitWidth: 40
+                implicitHeight: 40
+                radius: 20 // Always perfectly round
+
+                color: actionMouse.pressed ? "#dddddd" : (actionMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: parent.text
+                    font.pixelSize: 22
+                    font.bold: true
+                    color: "#555555"
+                }
+
+                MouseArea {
+                    id: actionMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: parent.clicked()
+                }
+            }
+
+            // --- CUSTOM TOOL BUTTON (Pens/Erasers) ---
+            component ToolButton : Rectangle {
+                property string icon: ""
+                property string toolId: "pen"
+                property bool isSelected: canvasArea.activeTool === toolId
+
+                implicitWidth: 44
+                implicitHeight: 54
+                radius: 8
+
+                color: isSelected ? "#e5e5e5" : (toolMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: parent.isSelected ? 14 : 8
+                    text: parent.icon
+                    font.pixelSize: 26
+                    Behavior on anchors.bottomMargin { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                }
+
+                MouseArea {
+                    id: toolMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: canvasArea.activeTool = parent.toolId
+                }
+            }
+
+            // --- CUSTOM COLOR SWATCH (The Grid Dots) ---
+            component ColorSwatch : Rectangle {
+                property color swatchColor: "#000000"
+                property bool isSelected: canvasArea.activeColor === swatchColor && canvasArea.activeTool === "pen"
+
+                implicitWidth: 26
+                implicitHeight: 26
+                radius: 13
+                color: swatchColor
+
+                border.color: isSelected ? "#aaaaaa" : "transparent"
+                border.width: isSelected ? 3 : 0
+
+                scale: isSelected ? 1.2 : 1.0
+                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+
+                MouseArea {
+                    id: swatchMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        canvasArea.activeTool = "pen"
+                        canvasArea.activeColor = parent.swatchColor
                     }
                 }
             }
-        }
-    }
-}
+
+            // --- THE TOP FLOATING TOOLBAR (Apple Notes Style) ---
+            Rectangle {
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.topMargin: 15
+
+                // Dynamically wrap tightly around the inner Row!
+                width: toolRow.width + 30
+                height: toolRow.height + 20
+                radius: height / 2 // Dynamic pill shape
+                color: "#fefefe"
+                border.color: "#dddddd"
+                border.width: 1
+
+                // Changed from RowLayout to a standard Row to completely prevent stretching
+                Row {
+                    id: toolRow
+                    anchors.centerIn: parent
+                    spacing: 12
+
+                    // 1. Undo / Redo
+                    Row {
+                        spacing: 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        ActionButton { text: "↶"; onClicked: console.log("Undo!") }
+                        ActionButton { text: "↷"; onClicked: console.log("Redo!") }
+                    }
+
+                    Rectangle { width: 1; height: 35; color: "#e0e0e0"; anchors.verticalCenter: parent.verticalCenter }
+
+                    // 2. The Tools
+                    Row {
+                        spacing: 5
+                        anchors.verticalCenter: parent.verticalCenter
+                        ToolButton { icon: "🖊️"; toolId: "pen" }
+                        ToolButton { icon: "🖍️"; toolId: "highlighter" }
+                        ToolButton { icon: "▱"; toolId: "eraser" }
+                        ToolButton { icon: "✖"; toolId: "stroke_eraser" }
+                    }
+
+                    Rectangle { width: 1; height: 35; color: "#e0e0e0"; anchors.verticalCenter: parent.verticalCenter }
+
+                    // 3. The Color Grid
+                    // Swapped GridLayout for standard Grid!
+                    Grid {
+                        columns: 3
+                        spacing: 6
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        ColorSwatch { swatchColor: "#1c1c1e" }
+                        ColorSwatch { swatchColor: "#007aff" }
+                        ColorSwatch { swatchColor: "#34c759" }
+                        ColorSwatch { swatchColor: "#ffcc00" }
+                        ColorSwatch { swatchColor: "#ff3b30" }
+                        ColorSwatch { swatchColor: "#af52de" }
+                    }
+                }
+            }
+        } // End of canvasArea Rectangle
+    } // End of SplitView
+} // End of Root Item
+
+

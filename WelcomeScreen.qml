@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 Item {
     id: root
-    anchors.fill: parent
+
 
     // A subtle gradient background for the welcome screen
     Rectangle {
