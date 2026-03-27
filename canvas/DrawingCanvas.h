@@ -19,11 +19,13 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
-    void checkCanvasSize();
+    // 1. New helper function to translate screen clicks to image coordinates
+    QPointF mapToInternal(const QPointF &screenPos);
     void drawSegment(const QPointF &endPoint, qreal pressure);
 
     QImage m_canvasBuffer;
     QPointF m_lastPoint;
+    QSize m_internalSize; // 2. Our fixed high-res memory size
 };
 
 #endif // DRAWINGCANVAS_H
