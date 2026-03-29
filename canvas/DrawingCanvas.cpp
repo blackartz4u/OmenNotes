@@ -26,6 +26,13 @@ DrawingCanvas::DrawingCanvas(QQuickItem *parent) : QQuickPaintedItem(parent)
     // and give it to the operating system!
     setCursor(QCursor(dotCursor, 2, 2));
 }
+void DrawingCanvas::setPenColor(const QColor &color)
+{
+    if (m_penColor != color) {
+        m_penColor = color;
+        emit penColorChanged();
+    }
+}
 
 void DrawingCanvas::paint(QPainter *painter)
 {
@@ -53,14 +60,28 @@ void DrawingCanvas::drawSegment(const QPointF &endPoint, qreal pressure)
 {
     QPainter painter(&m_canvasBuffer);
     painter.setRenderHint(QPainter::Antialiasing);
+    // Start with your base color and standard pen width
+    QColor drawColor = m_penColor;
+    int penWidth = 5;
+
+    // THE HIGHLIGHTER LOGIC
+    if (m_activeTool == "highlighter") {
+        penWidth = 25; // Make it thick like a marker!
+
+        // Set the Alpha (transparency) channel.
+        // 0 is invisible, 255 is solid. 80 is a great highlighter sweet spot.
+        drawColor.setAlpha(80);
+    }
 
     // Because our image is 1200x1600, a 1px line will look invisible.
     // We bump the base thickness up so it feels like a normal marker!
-    qreal thickness = 4.0 + (5.0 * pressure);
+    // Pass the modified color and width into the pen
+    QPen pen(drawColor);
+    pen.setWidth(penWidth);
+    pen.setCapStyle(Qt::RoundCap);
+    pen.setJoinStyle(Qt::RoundJoin);
 
-    QPen pen(Qt::black, thickness, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
     painter.setPen(pen);
-
     painter.drawLine(m_lastPoint, endPoint);
     m_lastPoint = endPoint;
     update();
@@ -90,4 +111,11 @@ void DrawingCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
     setKeepMouseGrab(false);
     event->accept();
+}
+void DrawingCanvas::setActiveTool(const QString &tool)
+{
+    if (m_activeTool != tool) {
+        m_activeTool = tool;
+        emit activeToolChanged();
+    }
 }

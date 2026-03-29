@@ -175,6 +175,12 @@ Item {
 
                             DrawingCanvas {
                                 anchors.fill: parent
+                                // THE MAGIC BINDING:
+                                // Every single page now instantly watches the toolbar!
+                                penColor: canvasArea.activeColor
+
+                                // THE NEW BINDING: Tells C++ what tool you clicked!
+                                activeTool: canvasArea.activeTool
                             }
                         }
                     }
