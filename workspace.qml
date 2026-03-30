@@ -37,6 +37,8 @@ Item {
 
             // --- CUSTOM ANIMATED BACK BUTTON ---
             Rectangle {
+                property int b_color: 0
+
                 id: backBtn
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -48,14 +50,20 @@ Item {
 
                 // Solid white resting state so it pops off the gray sidebar
                 color: backMouse.pressed ? "#555555" : (backMouse.containsMouse ? "#e8e8e8" : "#ffffff")
-                border.color: backMouse.pressed ? "#555555" : "#cccccc"
-                border.width: 1
+                border {
+                    width: 1
+                    color: addPageBtn.down ? "#555555" : "#cccccc"
+
+                    // Now you can apply the behavior directly to 'color' without the dot
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
 
                 // The tactile "Squish" physics
                 scale: backMouse.pressed ? 0.96 : 1.0
                 Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
+
                 Behavior on color { ColorAnimation { duration: 150 } }
-                Behavior on border.color { ColorAnimation { duration: 150 } }
+
 
                 // Using a Row to perfectly align the arrow and text
                 Row {
@@ -208,10 +216,16 @@ Item {
                         background: Rectangle {
                             radius: 15
                             color: addPageBtn.down ? "#555555" : (addPageBtn.hovered ? "#e8e8e8" : "#fdfdfd")
-                            border.color: addPageBtn.down ? "#555555" : "#cccccc"
-                            border.width: 1
+                            border {
+                                width: 1
+                                color: addPageBtn.down ? "#555555" : "#cccccc"
+
+                                // Now you can apply the behavior directly to 'color' without the dot
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                            }
+
                             Behavior on color { ColorAnimation { duration: 150 } }
-                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
                         }
 
                         scale: addPageBtn.down ? 0.98 : 1.0
@@ -364,12 +378,19 @@ Item {
                 Behavior on color { ColorAnimation { duration: 150 } }
 
                 Text {
+                    property int b_margin: parent.isSelected ? 14 : 8
+
+                    anchors.bottomMargin: b_margin
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
-                    anchors.bottomMargin: parent.isSelected ? 14 : 8
+
+                    // 2. The separate 'b_margin: ...' line is now deleted
+
                     text: parent.icon
                     font.pixelSize: 26
-                    Behavior on anchors.bottomMargin { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+
+                    Behavior on b_margin { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+
                 }
 
                 MouseArea {

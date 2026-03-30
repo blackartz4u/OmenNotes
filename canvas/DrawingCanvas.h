@@ -35,6 +35,8 @@ private:
     void drawSegment(const QPointF &endPoint, qreal pressure);
 
     QImage m_canvasBuffer;
+    QImage m_activeStrokeBuffer;
+    bool m_isDrawing = false;
     QPointF m_lastPoint;
     QSize m_internalSize; // 2. Our fixed high-res memory size
     // 4. The actual variable holding the current color (defaults to black)

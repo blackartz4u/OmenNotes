@@ -10,6 +10,8 @@ DrawingCanvas::DrawingCanvas(QQuickItem *parent) : QQuickPaintedItem(parent)
     m_internalSize = QSize(1536, 2048);
     m_canvasBuffer = QImage(m_internalSize, QImage::Format_ARGB32_Premultiplied);
     m_canvasBuffer.fill(Qt::transparent);
+    m_activeStrokeBuffer = QImage(m_internalSize, QImage::Format_ARGB32_Premultiplied);
+    m_activeStrokeBuffer.fill(Qt::transparent);
     // --- CUSTOM DOT CURSOR ---
     // 1. Create a tiny 8x8 pixel transparent square
     QPixmap dotCursor(4, 4);
@@ -39,6 +41,9 @@ void DrawingCanvas::paint(QPainter *painter)
     // 2. Turn on smooth scaling, and stretch the 1200x1600 image to fit the current QML UI rectangle
     painter->setRenderHint(QPainter::SmoothPixmapTransform);
     painter->drawImage(boundingRect(), m_canvasBuffer);
+    if (m_activeTool == "highlighter" && m_isDrawing) {
+        painter->drawImage(boundingRect(), m_activeStrokeBuffer);
+    }
 }
 
 // --- THE MATH --- //
@@ -58,7 +63,9 @@ QPointF DrawingCanvas::mapToInternal(const QPointF &screenPos)
 
 void DrawingCanvas::drawSegment(const QPointF &endPoint, qreal pressure)
 {
-    QPainter painter(&m_canvasBuffer);
+    QImage *targetBuffer = (m_activeTool == "highlighter") ? &m_activeStrokeBuffer : &m_canvasBuffer;
+    QPainter painter(targetBuffer);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.setRenderHint(QPainter::Antialiasing);
     // Start with your base color and standard pen width
     QColor drawColor = m_penColor;
@@ -71,6 +78,10 @@ void DrawingCanvas::drawSegment(const QPointF &endPoint, qreal pressure)
         // Set the Alpha (transparency) channel.
         // 0 is invisible, 255 is solid. 80 is a great highlighter sweet spot.
         drawColor.setAlpha(80);
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
+    } else if (m_activeTool == "eraser" || m_activeTool == "stroke_eraser") {
+        penWidth = 40;
+        painter.setCompositionMode(QPainter::CompositionMode_Clear);
     }
 
     // Because our image is 1200x1600, a 1px line will look invisible.
@@ -93,6 +104,12 @@ void DrawingCanvas::mousePressEvent(QMouseEvent *event)
 {
     // 3. Translate the click before saving it!
     m_lastPoint = mapToInternal(event->position());
+    m_isDrawing = true;
+
+    // 3. Clear the floating layer for a fresh stroke!
+    if (m_activeTool == "highlighter") {
+        m_activeStrokeBuffer.fill(Qt::transparent);
+    }
     setKeepMouseGrab(true);
     event->accept();
 }
@@ -109,6 +126,14 @@ void DrawingCanvas::mouseMoveEvent(QMouseEvent *event)
 
 void DrawingCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
+    m_isDrawing = false;
+
+    // 4. Bake the floating layer permanently onto the paper!
+    if (m_activeTool == "highlighter") {
+        QPainter finalPainter(&m_canvasBuffer);
+        finalPainter.drawImage(0, 0, m_activeStrokeBuffer);
+        update(); // Force a screen refresh
+    }
     setKeepMouseGrab(false);
     event->accept();
 }
