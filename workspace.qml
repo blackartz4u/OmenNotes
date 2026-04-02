@@ -13,7 +13,9 @@ Item {
     ListModel {
         id: pageModel
 
-        ListElement {pageIndex: 1} // Start with exactly 1 empty page
+        ListElement {
+            pageIndex: 1
+        } // Start with exactly 1 empty page
     }
 
     // --- 2. THE MAIN LAYOUT ---
@@ -55,14 +57,26 @@ Item {
                     color: addPageBtn.down ? "#555555" : "#cccccc"
 
                     // Now you can apply the behavior directly to 'color' without the dot
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
                 }
 
                 // The tactile "Squish" physics
                 scale: backMouse.pressed ? 0.96 : 1.0
-                Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: 100; easing.type: Easing.OutQuad
+                    }
+                }
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 150
+                    }
+                }
 
 
                 // Using a Row to perfectly align the arrow and text
@@ -108,6 +122,7 @@ Item {
             property real zoomLevel: 1.0
             property string activeTool: "pen"      // Can be "pen", "eraser", or "stroke_eraser"
             property color activeColor: "#000000"
+            property var currentCanvas: null
             // --- THE SCROLLABLE AREA (Optimized for Trackpad & Mouse) ---
             Flickable {
                 id: scroller
@@ -117,12 +132,14 @@ Item {
                 contentWidth: pageColumn.width
                 contentHeight: pageColumn.height
 
-                ScrollBar.vertical: ScrollBar {}
-                ScrollBar.horizontal: ScrollBar {}
+                ScrollBar.vertical: ScrollBar {
+                }
+                ScrollBar.horizontal: ScrollBar {
+                }
 
                 // --- SMART SCROLLING ENGINE ---
                 WheelHandler {
-                    onWheel: function(event) {
+                    onWheel: function (event) {
                         // 1. Is this a Trackpad? (Trackpads output pixelDelta)
                         if (event.pixelDelta.y !== 0 || event.pixelDelta.x !== 0) {
                             // Tell the handler to ignore it and let Flickable's native,
@@ -163,7 +180,9 @@ Item {
 
                             // 2. Start completely invisible and pushed down
                             opacity: 0
-                            transform: Translate { id: slideTransform; y: 150 }
+                            transform: Translate {
+                                id: slideTransform; y: 150
+                            }
 
                             Component.onCompleted: entryAnim.start()
 
@@ -172,16 +191,19 @@ Item {
                                 id: entryAnim
                                 NumberAnimation {
                                     target: pageRect; // <-- THE MISSING LINK!
-                                    property: "opacity"; to: 1.0;
+                                    property: "opacity";
+                                    to: 1.0;
                                     duration: 400; easing.type: Easing.OutQuart
                                 }
                                 NumberAnimation {
-                                    target: slideTransform; property: "y"; to: 0;
+                                    target: slideTransform; property: "y";
+                                    to: 0;
                                     duration: 400; easing.type: Easing.OutQuart
                                 }
                             }
 
                             DrawingCanvas {
+                                id: myPageCanvas
                                 anchors.fill: parent
                                 // THE MAGIC BINDING:
                                 // Every single page now instantly watches the toolbar!
@@ -189,10 +211,17 @@ Item {
 
                                 // THE NEW BINDING: Tells C++ what tool you clicked!
                                 activeTool: canvasArea.activeTool
+                                HoverHandler {
+                                    onHoveredChanged: {
+                                        if (hovered) {
+                                            canvasArea.currentCanvas = myPageCanvas
+                                        }
+                                    }
+
+                                }
                             }
                         }
                     }
-
                     // --- ADD PAGE BUTTON ---
                     Button {
                         id: addPageBtn
@@ -210,7 +239,11 @@ Item {
                             color: addPageBtn.down ? "#ffffff" : "#666666"
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
                         }
 
                         background: Rectangle {
@@ -221,274 +254,351 @@ Item {
                                 color: addPageBtn.down ? "#555555" : "#cccccc"
 
                                 // Now you can apply the behavior directly to 'color' without the dot
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 150
+                                    }
+                                }
                             }
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
 
                         }
 
                         scale: addPageBtn.down ? 0.98 : 1.0
-                        Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: 100; easing.type: Easing.OutQuad
+                            }
+                        }
                     }
                 }
             }
-            // --- CUSTOM ANIMATED ZOOM BUTTON ---
-            component ZoomButton : Rectangle {
-                property string text: ""
-                signal clicked()
+                // --- CUSTOM ANIMATED ZOOM BUTTON ---
+                component ZoomButton : Rectangle {
+                    property string text: ""
 
-                // implicitWidth guarantees the layout will NEVER stretch it
-                implicitWidth: 26
-                implicitHeight: 26
-                Layout.alignment: Qt.AlignHCenter
+                    signal clicked()
 
-                radius: 13
-                color: zoomMouse.pressed ? "#555555" : (zoomMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
-                Behavior on color { ColorAnimation { duration: 150 } }
+                    // implicitWidth guarantees the layout will NEVER stretch it
+                    implicitWidth: 26
+                    implicitHeight: 26
+                    Layout.alignment: Qt.AlignHCenter
 
-                Text {
-                    anchors.centerIn: parent
-                    text: parent.text
-                    font.pixelSize: 16
-                    font.bold: true
-                    color: zoomMouse.pressed ? "#ffffff" : "#666666"
-                }
+                    radius: 13
+                    color: zoomMouse.pressed ? "#555555" : (zoomMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
 
-                MouseArea {
-                    id: zoomMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: parent.clicked()
-                }
-            }
-
-            // --- THE FLOATING VERTICAL TOOLBAR ---
-            Rectangle {
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 15
-
-                width: 36
-                height: 180
-                radius: 18
-                color: "#ffffff"
-                border.color: "#dcdcdc"
-                border.width: 1
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.topMargin: 10
-                    anchors.bottomMargin: 10
-                    spacing: 2
-
-                    Label {
-                        text: Math.round(canvasArea.zoomLevel * 100)
-                        font.pixelSize: 10
+                    Text {
+                        anchors.centerIn: parent
+                        text: parent.text
+                        font.pixelSize: 16
                         font.bold: true
-                        color: "#888888"
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.bottomMargin: 4
+                        color: zoomMouse.pressed ? "#ffffff" : "#666666"
                     }
 
-                    ZoomButton { text: "+"; onClicked: zoomSlider.value = Math.min(3.0, zoomSlider.value + 0.1) }
+                    MouseArea {
+                        id: zoomMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: parent.clicked()
+                    }
+                }
 
-                    Slider {
-                        id: zoomSlider
-                        orientation: Qt.Vertical
-                        Layout.fillHeight: true
-                        Layout.alignment: Qt.AlignHCenter
-                        from: 0.2
-                        to: 3.0
-                        value: canvasArea.zoomLevel
-                        onValueChanged: canvasArea.zoomLevel = value
+                // --- THE FLOATING VERTICAL TOOLBAR ---
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 15
 
-                        background: Rectangle {
-                            x: zoomSlider.leftPadding + (zoomSlider.availableWidth - width) / 2
-                            y: zoomSlider.topPadding
-                            implicitWidth: 4
-                            height: zoomSlider.availableHeight
-                            radius: 2
-                            color: "#eeeeee"
+                    width: 36
+                    height: 180
+                    radius: 18
+                    color: "#ffffff"
+                    border.color: "#dcdcdc"
+                    border.width: 1
 
-                            Rectangle {
-                                width: parent.width
-                                height: zoomSlider.position * parent.height
-                                anchors.bottom: parent.bottom
-                                color: "#bbbbbb"
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.topMargin: 10
+                        anchors.bottomMargin: 10
+                        spacing: 2
+
+                        Label {
+                            text: Math.round(canvasArea.zoomLevel * 100)
+                            font.pixelSize: 10
+                            font.bold: true
+                            color: "#888888"
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.bottomMargin: 4
+                        }
+
+                        ZoomButton {
+                            text: "+"; onClicked: zoomSlider.value = Math.min(3.0, zoomSlider.value + 0.1)
+                        }
+
+                        Slider {
+                            id: zoomSlider
+                            orientation: Qt.Vertical
+                            Layout.fillHeight: true
+                            Layout.alignment: Qt.AlignHCenter
+                            from: 0.2
+                            to: 3.0
+                            value: canvasArea.zoomLevel
+                            onValueChanged: canvasArea.zoomLevel = value
+
+                            background: Rectangle {
+                                x: zoomSlider.leftPadding + (zoomSlider.availableWidth - width) / 2
+                                y: zoomSlider.topPadding
+                                implicitWidth: 4
+                                height: zoomSlider.availableHeight
                                 radius: 2
+                                color: "#eeeeee"
+
+                                Rectangle {
+                                    width: parent.width
+                                    height: zoomSlider.position * parent.height
+                                    anchors.bottom: parent.bottom
+                                    color: "#bbbbbb"
+                                    radius: 2
+                                }
+                            }
+
+                            handle: Rectangle {
+                                x: zoomSlider.leftPadding + (zoomSlider.availableWidth - width) / 2
+                                y: zoomSlider.topPadding + zoomSlider.visualPosition * (zoomSlider.availableHeight - height)
+                                implicitWidth: 12
+                                implicitHeight: 12
+                                radius: 6
+                                color: zoomSlider.pressed ? "#666666" : "#ffffff"
+                                border.color: zoomSlider.pressed ? "#666666" : "#cccccc"
+                                border.width: 1
                             }
                         }
 
-                        handle: Rectangle {
-                            x: zoomSlider.leftPadding + (zoomSlider.availableWidth - width) / 2
-                            y: zoomSlider.topPadding + zoomSlider.visualPosition * (zoomSlider.availableHeight - height)
-                            implicitWidth: 12
-                            implicitHeight: 12
-                            radius: 6
-                            color: zoomSlider.pressed ? "#666666" : "#ffffff"
-                            border.color: zoomSlider.pressed ? "#666666" : "#cccccc"
-                            border.width: 1
+                        ZoomButton {
+                            text: "−"; onClicked: zoomSlider.value = Math.max(0.2, zoomSlider.value - 0.1)
+                        }
+                    }
+                }
+
+                // --- CUSTOM ACTION BUTTON (Undo/Redo) ---
+                component ActionButton : Rectangle {
+                    property string text: ""
+
+                    signal clicked()
+
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: 20 // Always perfectly round
+
+                    color: actionMouse.pressed ? "#dddddd" : (actionMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
                         }
                     }
 
-                    ZoomButton { text: "−"; onClicked: zoomSlider.value = Math.max(0.2, zoomSlider.value - 0.1) }
-                }
-            }
+                    Text {
+                        anchors.centerIn: parent
+                        text: parent.text
+                        font.pixelSize: 22
+                        font.bold: true
+                        color: "#555555"
+                    }
 
-            // --- CUSTOM ACTION BUTTON (Undo/Redo) ---
-            component ActionButton : Rectangle {
-                property string text: ""
-                signal clicked()
-
-                implicitWidth: 40
-                implicitHeight: 40
-                radius: 20 // Always perfectly round
-
-                color: actionMouse.pressed ? "#dddddd" : (actionMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
-                Behavior on color { ColorAnimation { duration: 150 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: parent.text
-                    font.pixelSize: 22
-                    font.bold: true
-                    color: "#555555"
+                    MouseArea {
+                        id: actionMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: parent.clicked()
+                    }
                 }
 
-                MouseArea {
-                    id: actionMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: parent.clicked()
+                // --- CUSTOM TOOL BUTTON (Pens/Erasers) ---
+                component ToolButton : Rectangle {
+                    property string icon: ""
+                    property string toolId: "pen"
+                    property bool isSelected: canvasArea.activeTool === toolId
+
+                    implicitWidth: 44
+                    implicitHeight: 54
+                    radius: 8
+
+                    color: isSelected ? "#e5e5e5" : (toolMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
+
+                    Text {
+                        property int b_margin: parent.isSelected ? 14 : 8
+
+                        anchors.bottomMargin: b_margin
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+
+                        // 2. The separate 'b_margin: ...' line is now deleted
+
+                        text: parent.icon
+                        font.pixelSize: 26
+
+                        Behavior on b_margin {
+                            NumberAnimation {
+                                duration: 150; easing.type: Easing.OutBack
+                            }
+                        }
+
+                    }
+
+                    MouseArea {
+                        id: toolMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: canvasArea.activeTool = parent.toolId
+                    }
                 }
-            }
 
-            // --- CUSTOM TOOL BUTTON (Pens/Erasers) ---
-            component ToolButton : Rectangle {
-                property string icon: ""
-                property string toolId: "pen"
-                property bool isSelected: canvasArea.activeTool === toolId
+                // --- CUSTOM COLOR SWATCH (The Grid Dots) ---
+                component ColorSwatch : Rectangle {
+                    property color swatchColor: "#000000"
+                    property bool isSelected: canvasArea.activeColor === swatchColor && canvasArea.activeTool === "pen"
 
-                implicitWidth: 44
-                implicitHeight: 54
-                radius: 8
+                    implicitWidth: 26
+                    implicitHeight: 26
+                    radius: 13
+                    color: swatchColor
 
-                color: isSelected ? "#e5e5e5" : (toolMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
-                Behavior on color { ColorAnimation { duration: 150 } }
+                    border.color: isSelected ? "#aaaaaa" : "transparent"
+                    border.width: isSelected ? 3 : 0
 
-                Text {
-                    property int b_margin: parent.isSelected ? 14 : 8
+                    scale: isSelected ? 1.2 : 1.0
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: 150; easing.type: Easing.OutBack
+                        }
+                    }
 
-                    anchors.bottomMargin: b_margin
+                    MouseArea {
+                        id: swatchMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            canvasArea.activeTool = "pen"
+                            canvasArea.activeColor = parent.swatchColor
+                        }
+                    }
+                }
+
+                // --- THE TOP FLOATING TOOLBAR (Apple Notes Style) ---
+                Rectangle {
+                    anchors.top: parent.top
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom
+                    anchors.topMargin: 15
 
-                    // 2. The separate 'b_margin: ...' line is now deleted
+                    // Dynamically wrap tightly around the inner Row!
+                    width: toolRow.width + 30
+                    height: toolRow.height + 20
+                    radius: height / 2 // Dynamic pill shape
+                    color: "#fefefe"
+                    border.color: "#dddddd"
+                    border.width: 1
 
-                    text: parent.icon
-                    font.pixelSize: 26
-
-                    Behavior on b_margin { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-
-                }
-
-                MouseArea {
-                    id: toolMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: canvasArea.activeTool = parent.toolId
-                }
-            }
-
-            // --- CUSTOM COLOR SWATCH (The Grid Dots) ---
-            component ColorSwatch : Rectangle {
-                property color swatchColor: "#000000"
-                property bool isSelected: canvasArea.activeColor === swatchColor && canvasArea.activeTool === "pen"
-
-                implicitWidth: 26
-                implicitHeight: 26
-                radius: 13
-                color: swatchColor
-
-                border.color: isSelected ? "#aaaaaa" : "transparent"
-                border.width: isSelected ? 3 : 0
-
-                scale: isSelected ? 1.2 : 1.0
-                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-
-                MouseArea {
-                    id: swatchMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        canvasArea.activeTool = "pen"
-                        canvasArea.activeColor = parent.swatchColor
-                    }
-                }
-            }
-
-            // --- THE TOP FLOATING TOOLBAR (Apple Notes Style) ---
-            Rectangle {
-                anchors.top: parent.top
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.topMargin: 15
-
-                // Dynamically wrap tightly around the inner Row!
-                width: toolRow.width + 30
-                height: toolRow.height + 20
-                radius: height / 2 // Dynamic pill shape
-                color: "#fefefe"
-                border.color: "#dddddd"
-                border.width: 1
-
-                // Changed from RowLayout to a standard Row to completely prevent stretching
-                Row {
-                    id: toolRow
-                    anchors.centerIn: parent
-                    spacing: 12
-
-                    // 1. Undo / Redo
+                    // Changed from RowLayout to a standard Row to completely prevent stretching
                     Row {
-                        spacing: 2
-                        anchors.verticalCenter: parent.verticalCenter
-                        ActionButton { text: "↶"; onClicked: console.log("Undo!") }
-                        ActionButton { text: "↷"; onClicked: console.log("Redo!") }
-                    }
+                        id: toolRow
+                        anchors.centerIn: parent
+                        spacing: 12
 
-                    Rectangle { width: 1; height: 35; color: "#e0e0e0"; anchors.verticalCenter: parent.verticalCenter }
+                        // 1. Undo / Redo
+                        Row {
+                            spacing: 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            ActionButton {
+                                text: "↶";
+                                onClicked: {
+                                    if (canvasArea.currentCanvas !== null) {
+                                        canvasArea.currentCanvas.undo()
+                                    }
+                                }
+                            }
+                            ActionButton {
+                                text: "↷";
+                                onClicked: {
+                                    if (canvasArea.currentCanvas !== null) {
+                                        canvasArea.currentCanvas.redo()
+                                    }
+                                }
+                            }
+                        }
 
-                    // 2. The Tools
-                    Row {
-                        spacing: 5
-                        anchors.verticalCenter: parent.verticalCenter
-                        ToolButton { icon: "🖊️"; toolId: "pen" }
-                        ToolButton { icon: "🖍️"; toolId: "highlighter" }
-                        ToolButton { icon: "▱"; toolId: "eraser" }
-                        ToolButton { icon: "✖"; toolId: "stroke_eraser" }
-                    }
+                        Rectangle {
+                            width: 1; height: 35; color: "#e0e0e0"; anchors.verticalCenter: parent.verticalCenter
+                        }
 
-                    Rectangle { width: 1; height: 35; color: "#e0e0e0"; anchors.verticalCenter: parent.verticalCenter }
+                        // 2. The Tools
+                        Row {
+                            spacing: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                            ToolButton {
+                                icon: "🖊️"; toolId: "pen"
+                            }
+                            ToolButton {
+                                icon: "🖍️"; toolId: "highlighter"
+                            }
+                            ToolButton {
+                                icon: "▱"; toolId: "eraser"
+                            }
+                            ToolButton {
+                                icon: "✖"; toolId: "stroke_eraser"
+                            }
+                        }
 
-                    // 3. The Color Grid
-                    // Swapped GridLayout for standard Grid!
-                    Grid {
-                        columns: 3
-                        spacing: 6
-                        anchors.verticalCenter: parent.verticalCenter
+                        Rectangle {
+                            width: 1; height: 35; color: "#e0e0e0"; anchors.verticalCenter: parent.verticalCenter
+                        }
 
-                        ColorSwatch { swatchColor: "#1c1c1e" }
-                        ColorSwatch { swatchColor: "#007aff" }
-                        ColorSwatch { swatchColor: "#34c759" }
-                        ColorSwatch { swatchColor: "#ffcc00" }
-                        ColorSwatch { swatchColor: "#ff3b30" }
-                        ColorSwatch { swatchColor: "#af52de" }
+                        // 3. The Color Grid
+                        // Swapped GridLayout for standard Grid!
+                        Grid {
+                            columns: 3
+                            spacing: 6
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            ColorSwatch {
+                                swatchColor: "#1c1c1e"
+                            }
+                            ColorSwatch {
+                                swatchColor: "#007aff"
+                            }
+                            ColorSwatch {
+                                swatchColor: "#34c759"
+                            }
+                            ColorSwatch {
+                                swatchColor: "#ffcc00"
+                            }
+                            ColorSwatch {
+                                swatchColor: "#ff3b30"
+                            }
+                            ColorSwatch {
+                                swatchColor: "#af52de"
+                            }
+                        }
                     }
                 }
-            }
         } // End of canvasArea Rectangle
     } // End of SplitView
 } // End of Root Item
+
 
 

@@ -27,6 +27,7 @@ DrawingCanvas::DrawingCanvas(QQuickItem *parent) : QQuickPaintedItem(parent)
     // 3. Set the "hotspot" (the exact pixel that clicks) to the center (4, 4)
     // and give it to the operating system!
     setCursor(QCursor(dotCursor, 2, 2));
+    saveState();
 }
 void DrawingCanvas::setPenColor(const QColor &color)
 {
@@ -69,26 +70,34 @@ void DrawingCanvas::drawSegment(const QPointF &endPoint, qreal pressure)
     painter.setRenderHint(QPainter::Antialiasing);
     // Start with your base color and standard pen width
     QColor drawColor = m_penColor;
-    int penWidth = 5;
+    if (pressure <= 0.0) {
+        pressure = 1;
+    }
+    qreal minWidth = 6.0;  // <-- Increase this if light strokes are still too thin!
+    qreal maxWidth = 8.0;
+
 
     // THE HIGHLIGHTER LOGIC
     if (m_activeTool == "highlighter") {
-        penWidth = 25; // Make it thick like a marker!
-
+        minWidth = 35; // Make it thick like a marker!
+        maxWidth = 40;
         // Set the Alpha (transparency) channel.
         // 0 is invisible, 255 is solid. 80 is a great highlighter sweet spot.
         drawColor.setAlpha(80);
         painter.setCompositionMode(QPainter::CompositionMode_Source);
     } else if (m_activeTool == "eraser" || m_activeTool == "stroke_eraser") {
-        penWidth = 40;
+        minWidth = 50;
+        maxWidth = 50;
+        pressure = 1.0;
         painter.setCompositionMode(QPainter::CompositionMode_Clear);
     }
+    qreal dynamicWidth = minWidth + ((maxWidth - minWidth) * pressure);
 
     // Because our image is 1200x1600, a 1px line will look invisible.
     // We bump the base thickness up so it feels like a normal marker!
     // Pass the modified color and width into the pen
     QPen pen(drawColor);
-    pen.setWidth(penWidth);
+    pen.setWidth(dynamicWidth);
     pen.setCapStyle(Qt::RoundCap);
     pen.setJoinStyle(Qt::RoundJoin);
 
@@ -132,8 +141,10 @@ void DrawingCanvas::mouseReleaseEvent(QMouseEvent *event)
     if (m_activeTool == "highlighter") {
         QPainter finalPainter(&m_canvasBuffer);
         finalPainter.drawImage(0, 0, m_activeStrokeBuffer);
-        update(); // Force a screen refresh
+
     }
+    saveState();
+    update();
     setKeepMouseGrab(false);
     event->accept();
 }
@@ -142,5 +153,37 @@ void DrawingCanvas::setActiveTool(const QString &tool)
     if (m_activeTool != tool) {
         m_activeTool = tool;
         emit activeToolChanged();
+    }
+}
+void DrawingCanvas::saveState() {
+    // 1. If we used Undo, and then draw a NEW line, we must destroy the "Redo" future.
+    while (m_undoStack.size() > m_undoIndex + 1) {
+        m_undoStack.removeLast();
+    }
+
+    // 2. Take a snapshot of the current paper and add it to the stack
+    m_undoStack.append(m_canvasBuffer.copy());
+
+    // 3. Prevent RAM explosion! Limit history to 20 steps.
+    if (m_undoStack.size() > 20) {
+        m_undoStack.removeFirst();
+    } else {
+        m_undoIndex++;
+    }
+}
+
+void DrawingCanvas::undo() {
+    if (m_undoIndex > 0) {
+        m_undoIndex--; // Go back in time
+        m_canvasBuffer = m_undoStack[m_undoIndex].copy(); // Restore the snapshot
+        update(); // Force the screen to redraw
+    }
+}
+
+void DrawingCanvas::redo() {
+    if (m_undoIndex < m_undoStack.size() - 1) {
+        m_undoIndex++; // Go forward in time
+        m_canvasBuffer = m_undoStack[m_undoIndex].copy(); // Restore the snapshot
+        update(); // Force the screen to redraw
     }
 }

@@ -20,6 +20,8 @@ public:
     void setPenColor(const QColor &color);
     QString activeTool() const { return m_activeTool; }
     void setActiveTool(const QString &tool);
+    Q_INVOKABLE void undo();
+    Q_INVOKABLE void redo();
 signals:
     // 3. The Signal that tells QML it worked
     void penColorChanged();
@@ -31,12 +33,15 @@ protected:
 
 private:
     // 1. New helper function to translate screen clicks to image coordinates
+    void saveState();
     QPointF mapToInternal(const QPointF &screenPos);
     void drawSegment(const QPointF &endPoint, qreal pressure);
 
     QImage m_canvasBuffer;
     QImage m_activeStrokeBuffer;
     bool m_isDrawing = false;
+    QList<QImage> m_undoStack;
+    int m_undoIndex = -1; // Keeps track of where we are in the time machine
     QPointF m_lastPoint;
     QSize m_internalSize; // 2. Our fixed high-res memory size
     // 4. The actual variable holding the current color (defaults to black)
