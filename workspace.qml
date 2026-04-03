@@ -17,7 +17,24 @@ Item {
             pageIndex: 1
         } // Start with exactly 1 empty page
     }
+    // --- KEYBOARD SHORTCUTS ---
+    Shortcut {
+        sequence: StandardKey.Undo
+        onActivated: {
+            if (canvasArea.currentCanvas !== null) {
+                canvasArea.currentCanvas.undo()
+            }
+        }
+    }
 
+    Shortcut {
+        sequence: StandardKey.Redo
+        onActivated: {
+            if (canvasArea.currentCanvas !== null) {
+                canvasArea.currentCanvas.redo()
+            }
+        }
+    }
     // --- 2. THE MAIN LAYOUT ---
     SplitView {
         anchors.fill: parent
@@ -123,6 +140,9 @@ Item {
             property string activeTool: "pen"      // Can be "pen", "eraser", or "stroke_eraser"
             property color activeColor: "#000000"
             property var currentCanvas: null
+            property real activeBrushSize: 15.0
+            property real activeBrushOpacity: 1.0
+            property bool isSettingsOpen: false
             // --- THE SCROLLABLE AREA (Optimized for Trackpad & Mouse) ---
             Flickable {
                 id: scroller
@@ -211,6 +231,8 @@ Item {
 
                                 // THE NEW BINDING: Tells C++ what tool you clicked!
                                 activeTool: canvasArea.activeTool
+                                brushSize: canvasArea.activeBrushSize
+                                brushOpacity: canvasArea.activeBrushOpacity
                                 HoverHandler {
                                     onHoveredChanged: {
                                         if (hovered) {
@@ -502,6 +524,8 @@ Item {
 
                 // --- THE TOP FLOATING TOOLBAR (Apple Notes Style) ---
                 Rectangle {
+                    id: mainToolbar
+                    z: 10
                     anchors.top: parent.top
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.topMargin: 15
@@ -596,6 +620,218 @@ Item {
                         }
                     }
                 }
+
+            // --- COMPACT BRUSH SETTINGS PILL ---
+            Rectangle {
+                id: settingsBar
+                z: 9
+                width: 290 // Bumped slightly to fit the numbers perfectly
+                height: 38
+                radius: 19
+                color: "#ffffff"
+                border.color: "#d1d1d6"
+                border.width: 1
+
+                anchors.top: mainToolbar.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                // 1. Create a custom variable (no dots!) to handle the open/close math
+                property real dynamicTopMargin: canvasArea.isSettingsOpen ? 12 : -38
+
+                // 2. Apply that variable to the actual anchor
+                anchors.topMargin: dynamicTopMargin
+
+                // 3. Animate the custom variable instead!
+                Behavior on dynamicTopMargin {
+                    NumberAnimation { duration: 300; easing.type: Easing.OutBack }
+                }
+
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 8 // Tightly spaces the input and its slider
+
+                    // --- 1. FLUID SIZE INPUT ---
+                    TextField {
+                        id: sizeInput
+                        width: 46
+                        height: 26
+                        anchors.verticalCenter: parent.verticalCenter
+                        hoverEnabled: true
+
+                        // Two-way binding: Automatically displays the slider's value!
+                        text: canvasArea.activeBrushSize.toFixed(1)
+                        font.pixelSize: 13
+                        color: "#444444"
+                        horizontalAlignment: TextInput.AlignHCenter
+                        verticalAlignment: TextInput.AlignVCenter
+
+                        // FLUID DESIGN: Invisible until you hover or click!
+                        background: Rectangle {
+                            radius: 6
+                            color: sizeInput.activeFocus ? "#eeeeee" : (sizeInput.hovered ? "#f8f8f8" : "transparent")
+                            border.color: sizeInput.activeFocus ? "#d1d1d6" : "transparent"
+                            border.width: 1
+                        }
+
+                        // Forces the user to only type numbers between 1 and 50
+                        validator: DoubleValidator { bottom: 1.0; top: 50.0 }
+
+                        // When you hit Enter or click away, it snaps the slider to your typed value!
+                        onEditingFinished: {
+                            let val = parseFloat(text)
+                            if (!isNaN(val)) {
+                                canvasArea.activeBrushSize = Math.max(1.0, Math.min(50.0, val))
+                            }
+                            focus = false // Drop the keyboard focus
+                        }
+                    }
+
+                    // --- SIZE SLIDER ---
+                    Slider {
+                        id: sizeSlider
+                        width: 80
+                        height: 20
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 1.0
+                        to: 50.0
+                        value: canvasArea.activeBrushSize
+                        onValueChanged: canvasArea.activeBrushSize = value
+                        // --- 1. THE NEW SLIDER STICK (TRACK) ---
+                        background: Rectangle {
+                            x: sizeSlider.leftPadding
+                            y: sizeSlider.topPadding + sizeSlider.availableHeight / 2 - height / 2
+                            implicitWidth: 200
+                            implicitHeight: 4 // Thickness of the stick
+                            width: sizeSlider.availableWidth
+                            height: implicitHeight
+                            radius: 2
+                            color: "#e5e5ea" // 1. The EMPTY track color (Light Gray)
+
+                            Rectangle {
+                                width: sizeSlider.visualPosition * parent.width
+                                height: parent.height
+                                color: "#888888" // 2. The FILLED track color (Dark Gray)
+                                radius: 2
+                            }
+                        }
+                        handle: Rectangle {
+                            x: sizeSlider.leftPadding + sizeSlider.visualPosition * (sizeSlider.availableWidth - width)
+                            y: sizeSlider.topPadding + sizeSlider.availableHeight / 2 - height / 2
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 7
+                            color: sizeSlider.pressed ? "#e5e5ea" : "#ffffff"
+                            border.color: "#c7c7cc"
+                            border.width: 1
+                        }
+                    }
+
+                    // --- 2. FLUID OPACITY INPUT ---
+                    TextField {
+                        id: opacityInput
+                        width: 46
+                        height: 26
+                        anchors.verticalCenter: parent.verticalCenter
+                        hoverEnabled: true
+
+                        text: canvasArea.activeBrushOpacity.toFixed(2)
+                        font.pixelSize: 13
+                        color: "#444444"
+                        horizontalAlignment: TextInput.AlignHCenter
+                        verticalAlignment: TextInput.AlignVCenter
+
+                        background: Rectangle {
+                            radius: 6
+                            color: opacityInput.activeFocus ? "#eeeeee" : (opacityInput.hovered ? "#f8f8f8" : "transparent")
+                            border.color: opacityInput.activeFocus ? "#d1d1d6" : "transparent"
+                            border.width: 1
+                        }
+
+                        validator: DoubleValidator { bottom: 0.05; top: 1.0 }
+
+                        onEditingFinished: {
+                            let val = parseFloat(text)
+                            if (!isNaN(val)) {
+                                canvasArea.activeBrushOpacity = Math.max(0.05, Math.min(1.0, val))
+                            }
+                            focus = false
+                        }
+                    }
+
+                    // --- OPACITY SLIDER ---
+                    Slider {
+                        id: opacitySlider
+                        width: 80
+                        height: 20
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0.05
+                        to: 1.0
+                        value: canvasArea.activeBrushOpacity
+                        onValueChanged: canvasArea.activeBrushOpacity = value
+                        // --- THE OPACITY STICK ---
+                        background: Rectangle {
+                            x: opacitySlider.leftPadding
+                            y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
+                            implicitWidth: 200
+                            implicitHeight: 4
+                            width: opacitySlider.availableWidth
+                            height: implicitHeight
+                            radius: 2
+                            color: "#e5e5ea" // Empty track
+
+                            Rectangle {
+                                width: opacitySlider.visualPosition * parent.width
+                                height: parent.height
+                                color: "#888888" // Filled track
+                                radius: 2
+                            }
+                        }
+                        handle: Rectangle {
+                            x: opacitySlider.leftPadding + opacitySlider.visualPosition * (opacitySlider.availableWidth - width)
+                            y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 7
+                            color: opacitySlider.pressed ? "#e5e5ea" : "#ffffff"
+                            border.color: "#c7c7cc"
+                            border.width: 1
+                        }
+                    }
+                }
+            }
+
+            // --- THE PULL TAB BUTTON ---
+            Rectangle {
+                id: pullTab
+                z: 8 // Bottom Layer: Behind the settings pill
+                width: 48
+                height: 20
+                radius: 10 // Perfectly round edges
+
+                color: pullTabMouse.pressed ? "#e5e5ea" : (pullTabMouse.containsMouse ? "#f4f4f4" : "#ffffff")
+                border.color: "#d1d1d6"
+                border.width: 1
+
+                // Attach it to the bottom of the settings pill!
+                anchors.top: settingsBar.bottom
+                anchors.topMargin: -10 // Tucks the top half behind the pill, leaving 10px sticking out
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                Text {
+                    text: canvasArea.isSettingsOpen ? "▲" : "▼"
+                    font.pixelSize: 10
+                    color: "#8e8e93"
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: 3 // Pushes the arrow down into the visible space
+                }
+
+                MouseArea {
+                    id: pullTabMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: canvasArea.isSettingsOpen = !canvasArea.isSettingsOpen
+                }
+            }
         } // End of canvasArea Rectangle
     } // End of SplitView
 } // End of Root Item

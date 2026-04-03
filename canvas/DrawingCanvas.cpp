@@ -42,7 +42,7 @@ void DrawingCanvas::paint(QPainter *painter)
     // 2. Turn on smooth scaling, and stretch the 1200x1600 image to fit the current QML UI rectangle
     painter->setRenderHint(QPainter::SmoothPixmapTransform);
     painter->drawImage(boundingRect(), m_canvasBuffer);
-    if (m_activeTool == "highlighter" && m_isDrawing) {
+    if (m_isDrawing && m_activeTool != "eraser" && m_activeTool != "stroke_eraser") {
         painter->drawImage(boundingRect(), m_activeStrokeBuffer);
     }
 }
@@ -64,32 +64,41 @@ QPointF DrawingCanvas::mapToInternal(const QPointF &screenPos)
 
 void DrawingCanvas::drawSegment(const QPointF &endPoint, qreal pressure)
 {
-    QImage *targetBuffer = (m_activeTool == "highlighter") ? &m_activeStrokeBuffer : &m_canvasBuffer;
+    // 1. CHOOSE THE LAYER: Erasers go straight to the paper, everything else floats!
+    QImage *targetBuffer = (m_activeTool == "eraser" || m_activeTool == "stroke_eraser") ? &m_canvasBuffer : &m_activeStrokeBuffer;
     QPainter painter(targetBuffer);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.setRenderHint(QPainter::Antialiasing);
     // Start with your base color and standard pen width
     QColor drawColor = m_penColor;
     if (pressure <= 0.0) {
-        pressure = 1;
+        pressure = 0.5;
     }
-    qreal minWidth = 6.0;  // <-- Increase this if light strokes are still too thin!
-    qreal maxWidth = 8.0;
+    drawColor.setAlphaF(m_brushOpacity);
+
+    // 2. APPLY DYNAMIC SIZE:
+    // We make the lightest touch 40% of whatever size you set on the slider
+    qreal minWidth = qMax(4.0, m_brushSize * 0.7);
+    qreal maxWidth = m_brushSize;
 
 
     // THE HIGHLIGHTER LOGIC
     if (m_activeTool == "highlighter") {
-        minWidth = 35; // Make it thick like a marker!
-        maxWidth = 40;
+        minWidth = m_brushSize * 0.8; // Make it thick like a marker!
+        maxWidth = m_brushSize * 0.8;
         // Set the Alpha (transparency) channel.
         // 0 is invisible, 255 is solid. 80 is a great highlighter sweet spot.
         drawColor.setAlpha(80);
         painter.setCompositionMode(QPainter::CompositionMode_Source);
     } else if (m_activeTool == "eraser" || m_activeTool == "stroke_eraser") {
-        minWidth = 50;
-        maxWidth = 50;
+        minWidth = m_brushSize * 1.5;
+        maxWidth = m_brushSize * 1.5;
         pressure = 1.0;
         painter.setCompositionMode(QPainter::CompositionMode_Clear);
+    }
+    // 2. THE ANTI-CATERPILLAR MATH: Force the Pen and Highlighter to NOT stack pixels!
+    if (m_activeTool != "eraser" && m_activeTool != "stroke_eraser") {
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
     }
     qreal dynamicWidth = minWidth + ((maxWidth - minWidth) * pressure);
 
@@ -97,7 +106,7 @@ void DrawingCanvas::drawSegment(const QPointF &endPoint, qreal pressure)
     // We bump the base thickness up so it feels like a normal marker!
     // Pass the modified color and width into the pen
     QPen pen(drawColor);
-    pen.setWidth(dynamicWidth);
+    pen.setWidthF(dynamicWidth);
     pen.setCapStyle(Qt::RoundCap);
     pen.setJoinStyle(Qt::RoundJoin);
 
@@ -116,7 +125,7 @@ void DrawingCanvas::mousePressEvent(QMouseEvent *event)
     m_isDrawing = true;
 
     // 3. Clear the floating layer for a fresh stroke!
-    if (m_activeTool == "highlighter") {
+    if (m_activeTool != "eraser" && m_activeTool != "stroke_eraser") {
         m_activeStrokeBuffer.fill(Qt::transparent);
     }
     setKeepMouseGrab(true);
@@ -138,10 +147,9 @@ void DrawingCanvas::mouseReleaseEvent(QMouseEvent *event)
     m_isDrawing = false;
 
     // 4. Bake the floating layer permanently onto the paper!
-    if (m_activeTool == "highlighter") {
+    if (m_activeTool != "eraser" && m_activeTool != "stroke_eraser") {
         QPainter finalPainter(&m_canvasBuffer);
         finalPainter.drawImage(0, 0, m_activeStrokeBuffer);
-
     }
     saveState();
     update();
@@ -185,5 +193,18 @@ void DrawingCanvas::redo() {
         m_undoIndex++; // Go forward in time
         m_canvasBuffer = m_undoStack[m_undoIndex].copy(); // Restore the snapshot
         update(); // Force the screen to redraw
+    }
+}
+void DrawingCanvas::setBrushSize(qreal size) {
+    if (m_brushSize != size) {
+        m_brushSize = size;
+        emit brushSizeChanged();
+    }
+}
+
+void DrawingCanvas::setBrushOpacity(qreal opacity) {
+    if (m_brushOpacity != opacity) {
+        m_brushOpacity = opacity;
+        emit brushOpacityChanged();
     }
 }
