@@ -8,7 +8,14 @@ import QtQuick.Effects
 Item {
     id: root
     // Notice: NO 'anchors.fill: parent' here to keep the StackView happy!
-
+    ListModel {
+        id: explorerModel
+        // This starts with your "Saved" files.
+        // Later, this will be populated by your C++ SQLite manager.
+        ListElement { name: "Biology Notes"; isFolder: false }
+        ListElement { name: "Project Omen"; isFolder: true }
+        ListElement { name: "Drafts"; isFolder: true }
+    }
     // --- 1. THE SMART LIST ---
     // This tracks our pages and safely lives at the very top of the app
     ListModel {
@@ -67,18 +74,142 @@ Item {
                 acceptedButtons: Qt.NoButton
             }
         }
-        // --- LEFT SIDEBAR ---
+        // --- THE SIDEBAR ---
         Rectangle {
-            id: sidebar
-            SplitView.preferredWidth: 200
-            SplitView.minimumWidth: 180
+            id: sidebarRoot
+            SplitView.preferredWidth: 240
+            SplitView.minimumWidth: 200
             SplitView.maximumWidth: 400
-            color: "transparent"
+            color: "transparent" // Subtle tint
 
-            Label {
-                anchors.centerIn: parent
-                text: "Notes List"
-                color: "#888888"
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 15
+                spacing: 20
+
+                // --- HEADER & ACTION BUTTONS ---
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Label {
+                        text: "EXPLORER"
+                        font.pixelSize: 11
+                        font.bold: true
+                        color: "#66ffffff"
+                        font.letterSpacing: 1.5
+                        Layout.bottomMargin: 5
+                    }
+
+                    RowLayout {
+                        spacing: 10
+
+                        // COMPONENT: Reusable Glass Icon Button
+                        component IconButton : Rectangle {
+                            id: btn
+                            property string icon: ""
+                            property alias mouse: btnMouse
+                            Layout.preferredWidth: 45
+                            Layout.preferredHeight: 45
+                            radius: 12
+                            color: "#22ffffff"
+                            border.color: btnMouse.containsMouse ? "#ffffff" : "#40ffb8ed"
+                            border.width: 1
+                            Behavior on border.color { ColorAnimation { duration: 200 } }
+
+                            Text {
+                                text: btn.icon
+                                anchors.centerIn: parent
+                                font.pixelSize: 18
+                                color: "#ffffff"
+                            }
+
+                            // --- THE GLOW ---
+                            Rectangle { id: msk; anchors.fill: parent; radius: parent.radius; layer.enabled: true; visible: false }
+                            Rectangle { id: glw; anchors.centerIn: parent; width: parent.width; height: parent.height; radius: height/2; color: "#ffffff"; layer.enabled: true; visible: false }
+                            MultiEffect {
+                                anchors.fill: parent; source: glw; maskEnabled: true; maskSource: msk
+                                opacity: btnMouse.containsMouse ? 0.3 : 0.0
+                                blurEnabled: true; blurMax: 50; blur: 1.0
+                                Behavior on opacity { NumberAnimation { duration: 200 } }
+                            }
+
+                            MouseArea { id: btnMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor }
+                        }
+
+                        IconButton {
+                            icon: "📁+"
+                            mouse.onClicked: console.log("New Folder")
+                        }
+                        IconButton {
+                            icon: "📄+"
+                            mouse.onClicked: {
+                                // This adds to the Sidebar/Database, not the canvas!
+                                explorerModel.append({"name": "New Note " + (explorerModel.count + 1), "isFolder": false})
+                            }
+                        }
+                    }
+                }
+
+                // --- THE FILE TREE (Modern Glass List) ---
+                ListView {
+                    id: fileList
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    model: explorerModel
+                    spacing: 8
+
+                    delegate: Item {
+                        id: delegateRoot
+                        width: fileList.width
+                        height: 40
+
+                        Rectangle {
+                            id: delegateBg
+                            anchors.fill: parent
+                            anchors.rightMargin: 5
+                            radius: 8
+                            // Glass highlight on hover
+                            color: delegateMouse.containsMouse ? "#26ffffff" : "transparent"
+                            border.color: delegateMouse.containsMouse ? "#40ffffff" : "transparent"
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                spacing: 12
+
+                                Text {
+                                    //text: model.isFolder ? "󱭶" : "󰈙" // Using Nerd Font style icons or Emoji
+                                    text: model.isFolder ? "📂" : "📄"
+                                    font.pixelSize: 14
+                                    opacity: delegateMouse.containsMouse ? 1.0 : 0.7
+                                }
+
+                                Text {
+                                    text: model.name
+                                    color: "#ffffff"
+                                    font.pixelSize: 14
+                                    font.weight: delegateMouse.containsMouse ? Font.Medium : Font.Normal
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            MouseArea {
+                                id: delegateMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    fileList.currentIndex = index
+                                    console.log("Selected: " + model.name)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // --- PREMIUM GLASS BACK BUTTON ---
@@ -88,27 +219,22 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottomMargin: 30
 
-                width: 180
+                width: 160 // Slightly smaller to fit narrow sidebar widths
                 height: 46
                 radius: 23
 
-                // 1. BASE COLORS: Translucent hot pink base (25% opacity)
                 color: "#33ffffff"
-
-                // 2. BORDER ANIMATION: Shifts to Solid White on hover
                 border.color: backMouse.containsMouse ? "#ffffff" : "#ffb8ed"
                 border.width: 1
                 Behavior on border.color { ColorAnimation { duration: 250; easing.type: Easing.OutQuad } }
 
-                // 3. SQUISH PHYSICS (Kept from your original design!)
                 scale: backMouse.pressed ? 0.96 : 1.0
                 Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
-                // --- THE CENTER GLOW ENGINE ---
                 Rectangle {
                     id: backMask
                     anchors.fill: parent
-                    radius: backBtn.radius
+                    radius: parent.radius
                     layer.enabled: true
                     visible: false
                 }
@@ -123,58 +249,32 @@ Item {
                     layer.enabled: true
                     visible: false
                 }
-                // 3. The Compositor (Combines the Core and the Mask safely!)
+
                 MultiEffect {
                     anchors.fill: parent
                     source: backGlow
-
-                    // THE FIX: Move the hover fade to the MultiEffect itself!
                     opacity: backMouse.containsMouse ? 0.4 : 0.0
                     Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutQuad } }
-
                     blurEnabled: true
                     blurMax: 20
                     blur: 1.0
-
                     maskEnabled: true
-                    maskSource: backMask // This reference will NEVER break now!
+                    maskSource: backMask
                 }
 
-                // --- BUTTON CONTENT ---
                 Row {
                     anchors.centerIn: parent
                     spacing: 8
-
-                    Text {
-                        text: "⟵"
-                        font.pixelSize: 18
-                        font.bold: true
-
-                        // Changed to pure white so it pops against the pink glass
-                        color: "#ffffff"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    Text {
-                        text: "Back to Menu"
-                        font.pixelSize: 15
-                        font.bold: true
-
-                        // Changed to pure white so it pops against the pink glass
-                        color: "#ffffff"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                    Text { text: "⟵"; font.pixelSize: 18; font.bold: true; color: "#ffffff" }
+                    Text { text: "Menu"; font.pixelSize: 15; font.bold: true; color: "#ffffff" }
                 }
 
-                // --- THE MOUSE SENSOR ---
                 MouseArea {
                     id: backMouse
                     anchors.fill: parent
-                    hoverEnabled: true // Required for the glow and border to track the mouse!
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.StackView.view.pop()
-                    }
+                    onClicked: root.StackView.view.pop()
                 }
             }
         }
