@@ -6,6 +6,7 @@ Window {
     height: 600
     visible: true
     title: qsTr("Omen")
+
     color: "#80ff0000"
     StackView {
         id: stackView

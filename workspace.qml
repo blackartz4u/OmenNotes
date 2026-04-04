@@ -70,8 +70,8 @@ Item {
         // --- LEFT SIDEBAR ---
         Rectangle {
             id: sidebar
-            SplitView.preferredWidth: 250
-            SplitView.minimumWidth: 150
+            SplitView.preferredWidth: 200
+            SplitView.minimumWidth: 180
             SplitView.maximumWidth: 400
             color: "transparent"
 
@@ -81,58 +81,77 @@ Item {
                 color: "#888888"
             }
 
-            // --- CUSTOM ANIMATED BACK BUTTON ---
+            // --- PREMIUM GLASS BACK BUTTON ---
             Rectangle {
-                property int b_color: 0
-
                 id: backBtn
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottomMargin: 30 // Lifted it up slightly so it breathes
+                anchors.bottomMargin: 30
 
                 width: 180
                 height: 46
-                radius: 23 // Perfect pill shape (Half of 46)
+                radius: 23
 
-                // Solid white resting state so it pops off the gray sidebar
-                color: backMouse.pressed ? "#555555" : (backMouse.containsMouse ? "#e8e8e8" : "#ffffff")
-                border {
-                    width: 1
-                    color: addPageBtn.down ? "#555555" : "#cccccc"
+                // 1. BASE COLORS: Translucent hot pink base (25% opacity)
+                color: "#33ffffff"
 
-                    // Now you can apply the behavior directly to 'color' without the dot
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: 150
-                        }
-                    }
-                }
+                // 2. BORDER ANIMATION: Shifts to Solid White on hover
+                border.color: backMouse.containsMouse ? "#ffffff" : "#ffb8ed"
+                border.width: 1
+                Behavior on border.color { ColorAnimation { duration: 250; easing.type: Easing.OutQuad } }
 
-                // The tactile "Squish" physics
+                // 3. SQUISH PHYSICS (Kept from your original design!)
                 scale: backMouse.pressed ? 0.96 : 1.0
-                Behavior on scale {
-                    NumberAnimation {
-                        duration: 100; easing.type: Easing.OutQuad
-                    }
+                Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
+
+                // --- THE CENTER GLOW ENGINE ---
+                Rectangle {
+                    id: backMask
+                    anchors.fill: parent
+                    radius: backBtn.radius
+                    layer.enabled: true
+                    visible: false
                 }
 
-                Behavior on color {
-                    ColorAnimation {
-                        duration: 150
-                    }
+                Rectangle {
+                    id: backGlow
+                    anchors.centerIn: parent
+                    width: parent.width * 0.9
+                    height: parent.height * 0.7
+                    radius: height / 2
+                    color: "#ffffff"
+                    layer.enabled: true
+                    visible: false
+                }
+                // 3. The Compositor (Combines the Core and the Mask safely!)
+                MultiEffect {
+                    anchors.fill: parent
+                    source: backGlow
+
+                    // THE FIX: Move the hover fade to the MultiEffect itself!
+                    opacity: backMouse.containsMouse ? 0.4 : 0.0
+                    Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutQuad } }
+
+                    blurEnabled: true
+                    blurMax: 20
+                    blur: 1.0
+
+                    maskEnabled: true
+                    maskSource: backMask // This reference will NEVER break now!
                 }
 
-
-                // Using a Row to perfectly align the arrow and text
+                // --- BUTTON CONTENT ---
                 Row {
                     anchors.centerIn: parent
                     spacing: 8
 
                     Text {
-                        text: "⟵" // Elegant long arrow
+                        text: "⟵"
                         font.pixelSize: 18
                         font.bold: true
-                        color: backMouse.pressed ? "#ffffff" : "#666666"
+
+                        // Changed to pure white so it pops against the pink glass
+                        color: "#ffffff"
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
@@ -140,16 +159,19 @@ Item {
                         text: "Back to Menu"
                         font.pixelSize: 15
                         font.bold: true
-                        color: backMouse.pressed ? "#ffffff" : "#666666"
+
+                        // Changed to pure white so it pops against the pink glass
+                        color: "#ffffff"
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
 
+                // --- THE MOUSE SENSOR ---
                 MouseArea {
                     id: backMouse
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor // Gives you the hand pointer!
+                    hoverEnabled: true // Required for the glow and border to track the mouse!
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         root.StackView.view.pop()
                     }
@@ -271,53 +293,92 @@ Item {
                             }
                         }
                     }
-                    // --- ADD PAGE BUTTON ---
+                    // --- PREMIUM GLASS ADD PAGE BUTTON ---
                     Button {
                         id: addPageBtn
                         text: "+ Add New Page"
+
+                        // Kept your dynamic sizing and positioning!
                         width: (scroller.width - 60) * canvasArea.zoomLevel
                         height: 60
                         anchors.horizontalCenter: parent.horizontalCenter
 
+                        // CRITICAL: Turn on the hover sensor for the standard Qt Button!
+                        hoverEnabled: true
+
                         onClicked: pageModel.append({pageIndex: pageModel.count + 1})
 
+                        // --- BUTTON TEXT ---
                         contentItem: Text {
                             text: addPageBtn.text
                             font.pixelSize: 18
                             font.bold: true
-                            color: addPageBtn.down ? "#ffffff" : "#666666"
+
+                            // Changed to pure white so it pops against the pink glass
+                            color: "#ffffff"
+
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: 150
-                                }
-                            }
+
+                            // Added a tiny opacity drop when pressed for extra tactile feedback!
+                            opacity: addPageBtn.down ? 0.7 : 1.0
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
                         }
 
+                        // --- THE GLASS BACKGROUND & GLOW ---
                         background: Rectangle {
-                            radius: 15
-                            color: addPageBtn.down ? "#555555" : (addPageBtn.hovered ? "#e8e8e8" : "#fdfdfd")
-                            border {
-                                width: 1
-                                color: addPageBtn.down ? "#555555" : "#cccccc"
+                            id: bgBase
+                            radius: 25
 
-                                // Now you can apply the behavior directly to 'color' without the dot
-                                Behavior on color {
-                                    ColorAnimation {
-                                        duration: 150
-                                    }
-                                }
+                            // 1. Capture the Button's hover state safely
+                            readonly property bool isHovered: parent.hovered
+
+                            // 2. Base Color: Translucent hot pink base (25% opacity)
+                            color: "#33ffffff"
+
+                            // 3. Border Animation: Shifts to Solid White on hover
+                            border.color: bgBase.isHovered ? "#ffffff" : "#ffb8ed"
+                            border.width: 1
+                            Behavior on border.color { ColorAnimation { duration: 250; easing.type: Easing.OutQuad } }
+
+                            // --- THE CENTER GLOW ENGINE ---
+                            Rectangle {
+                                id: addMask
+                                anchors.fill: parent
+                                radius: parent.radius // Dynamically matches the 15px radius above
+                                layer.enabled: true
+                                visible: false
                             }
 
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: 150
-                                }
+                            Rectangle {
+                                id: addGlow
+                                anchors.centerIn: parent
+                                width: parent.width * 0.9
+                                height: parent.height * 0.6
+                                radius: height / 2
+                                color: "#ffffff"
+                                layer.enabled: true
+                                visible: false
                             }
+                            MultiEffect {
+                                anchors.fill: parent
+                                source: addGlow
 
+                                // THE FIX: Move the hover fade to the MultiEffect itself!
+                                opacity: bgBase.isHovered ? 0.4 : 0.0
+                                Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutQuad } }
+
+                                blurEnabled: true
+                                blurMax: 64
+                                blur: 1.0
+
+                                maskEnabled: true
+                                maskSource: addMask // This reference will NEVER break now!
+                            }
                         }
 
+                        // --- SQUISH PHYSICS ---
+                        // (Kept from your original design)
                         scale: addPageBtn.down ? 0.98 : 1.0
                         Behavior on scale {
                             NumberAnimation {

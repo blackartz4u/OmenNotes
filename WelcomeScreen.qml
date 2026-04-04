@@ -1,13 +1,10 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 
 Item {
     id: root
-
-
-    // A subtle gradient background for the welcome screen
-
 
     ColumnLayout {
         anchors.centerIn: parent
@@ -16,50 +13,85 @@ Item {
         // App Title
         Label {
             text: "Omen Notes"
-            font.pixelSize: 42
+            font.pixelSize: 48
             font.bold: true
-            color: "#222222"
-            Layout.alignment: Qt.AlignHCenter
-            Layout.bottomMargin: 30 // Add some space below the title
+            color: "#ffffff"
+            font.letterSpacing: 2
+            Layout.alignment: Qt.AlignHCenter // Already centered
+            Layout.bottomMargin: 40
         }
 
         // --- CUSTOM ANIMATED BUTTON COMPONENT ---
-        // We define a reusable component here so we don't write the animation code 3 times
         component MenuButton : Button {
+            id: control
             Layout.preferredWidth: 250
             Layout.preferredHeight: 50
 
-            // The text styling
+            // THE FIX: This force-centers the button within the ColumnLayout
+            Layout.alignment: Qt.AlignHCenter
+
+            hoverEnabled: true
+
             contentItem: Text {
-                text: parent.text
+                text: control.text
                 font.pixelSize: 16
                 font.bold: true
-                color: parent.down ? "#ffffff" : "#333333" // White when clicked
+                color: "#ffffff"
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
 
-            // The animated background
             background: Rectangle {
+                id: bgBase
                 radius: 10
-                // Logic: If clicked -> Purple. If hovered -> Light Gray. Else -> White.
-                color: parent.down ? "#9e1fff" : (parent.hovered ? "#e8e8e8" : "#ffffff")
-                border.color: "#dddddd"
-                border.width: 1
+                color: "#33ffffff"
+                readonly property bool isHovered: control.hovered
 
-                // This is the magic that makes the color change fluid instead of instant!
-                Behavior on color { ColorAnimation { duration: 200 } }
+                border.color: bgBase.isHovered ? "#ffffff" : "#ffb8ed"
+                border.width: 1
+                Behavior on border.color { ColorAnimation { duration: 250; easing.type: Easing.OutQuad }}
+
+                // --- THE UPDATED GLOW ENGINE (Sibling Method) ---
+
+                Rectangle {
+                    id: buttonMask
+                    anchors.fill: parent
+                    radius: parent.radius
+                    layer.enabled: true
+                    visible: false
+                }
+
+                Rectangle {
+                    id: glowCore
+                    anchors.centerIn: parent
+                    width: parent.width * 0.9
+                    height: parent.height * 0.7
+                    radius: width / 2
+                    color: "#ffffff"
+                    layer.enabled: true
+                    visible: false
+                }
+
+                MultiEffect {
+                    anchors.fill: parent
+                    source: glowCore
+                    opacity: bgBase.isHovered ? 0.3 : 0.0
+                    Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutQuad } }
+
+                    blurEnabled: true
+                    blurMax: 64
+                    blur: 1.0
+                    maskEnabled: true
+                    maskSource: buttonMask
+                }
             }
         }
 
-        // --- ACTUAL BUTTONS ---
+        // --- ACTUAL BUTTONS (Now perfectly centered) ---
 
         MenuButton {
             text: "New Note"
-            onClicked: {
-                // We will tell the StackView to load the Workspace here!
-                root.StackView.view.push("workspace.qml")
-            }
+            onClicked: root.StackView.view.push("workspace.qml")
         }
 
         MenuButton {
