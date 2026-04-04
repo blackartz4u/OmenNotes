@@ -3,6 +3,7 @@ import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 import OmenNotes.Canvas
+import QtQuick.Effects
 
 Item {
     id: root
@@ -39,14 +40,40 @@ Item {
     SplitView {
         anchors.fill: parent
         orientation: Qt.Horizontal
+        background: null
+        handle: Rectangle {
+            id: splitHandle
 
+            // 1. Make it wide enough to see the box and grab it easily
+            implicitWidth: 6
+
+            // 2. Make the inside completely transparent
+            color: "#13ff69b4"
+
+            // 3. Put the border around the OUTSIDE of the handle
+            border.color: "#dddddd" // Use "#e6ffffff" if you went back to the glass look!
+            border.width: 0.6
+
+            // 4. (Optional) Give it rounded corners so it looks like a modern track
+            radius: 4
+
+            // 5. (Optional) Squeeze the top and bottom so it floats slightly inside the window
+            // height: parent.height - 20
+            // anchors.verticalCenter: parent.verticalCenter
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.SplitHCursor
+                acceptedButtons: Qt.NoButton
+            }
+        }
         // --- LEFT SIDEBAR ---
         Rectangle {
             id: sidebar
             SplitView.preferredWidth: 250
             SplitView.minimumWidth: 150
             SplitView.maximumWidth: 400
-            color: "#f3f3f3"
+            color: "transparent"
 
             Label {
                 anchors.centerIn: parent
@@ -134,7 +161,7 @@ Item {
         Rectangle {
             id: canvasArea
             SplitView.fillWidth: true
-            color: "#e0e0e0"
+            color: "transparent"
             clip: true
             property real zoomLevel: 1.0
             property string activeTool: "pen"      // Can be "pen", "eraser", or "stroke_eraser"
@@ -312,7 +339,7 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
 
                     radius: 13
-                    color: zoomMouse.pressed ? "#555555" : (zoomMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                    color: zoomMouse.pressed ? "#33000000" : (zoomMouse.containsMouse ? "#1a000000" : "transparent")
                     Behavior on color {
                         ColorAnimation {
                             duration: 150
@@ -324,7 +351,7 @@ Item {
                         text: parent.text
                         font.pixelSize: 16
                         font.bold: true
-                        color: zoomMouse.pressed ? "#ffffff" : "#666666"
+                        color: zoomMouse.pressed ? "#222222" : "#666666"
                     }
 
                     MouseArea {
@@ -345,7 +372,7 @@ Item {
                     height: 180
                     radius: 18
                     color: "#ffffff"
-                    border.color: "#dcdcdc"
+                    border.color: "#dddddd"
                     border.width: 1
 
                     ColumnLayout {
@@ -422,7 +449,7 @@ Item {
                     implicitHeight: 40
                     radius: 20 // Always perfectly round
 
-                    color: actionMouse.pressed ? "#dddddd" : (actionMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                    color: actionMouse.pressed ? "#33000000" : (actionMouse.containsMouse ? "#1a000000" : "transparent")
                     Behavior on color {
                         ColorAnimation {
                             duration: 150
@@ -434,7 +461,7 @@ Item {
                         text: parent.text
                         font.pixelSize: 22
                         font.bold: true
-                        color: "#555555"
+                        color: actionMouse.pressed ? "#222222" : "#555555"
                     }
 
                     MouseArea {
@@ -455,7 +482,7 @@ Item {
                     implicitHeight: 54
                     radius: 8
 
-                    color: isSelected ? "#e5e5e5" : (toolMouse.containsMouse ? "#e0e0e0" : "#00ffffff")
+                    color: isSelected ? "#26000000" : (toolMouse.containsMouse ? "#1a000000" : "transparent")
                     Behavior on color {
                         ColorAnimation {
                             duration: 150
@@ -530,14 +557,17 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.topMargin: 15
 
-                    // Dynamically wrap tightly around the inner Row!
                     width: toolRow.width + 30
                     height: toolRow.height + 20
-                    radius: height / 2 // Dynamic pill shape
-                    color: "#fefefe"
+                    radius: height / 2
+
+                    // THE ILLUSION OF GLASS
+                    // 85% Solid White. It acts like a diffuser for anything underneath it!
+                    color: "#ffffff"
+
+                    // A crisp, 95% white border to catch the light and separate it from the canvas
                     border.color: "#dddddd"
                     border.width: 1
-
                     // Changed from RowLayout to a standard Row to completely prevent stretching
                     Row {
                         id: toolRow
@@ -629,7 +659,7 @@ Item {
                 height: 38
                 radius: 19
                 color: "#ffffff"
-                border.color: "#d1d1d6"
+                border.color: "#dddddd"
                 border.width: 1
 
                 anchors.top: mainToolbar.bottom
@@ -644,7 +674,14 @@ Item {
                 Behavior on dynamicTopMargin {
                     NumberAnimation { duration: 300; easing.type: Easing.OutBack }
                 }
+                // If it is open, make it 100% solid. If closed, make it completely invisible!
+                opacity: canvasArea.isSettingsOpen ? 1.0 : 0.0
 
+                // --- 2. ADD THIS OPACITY BEHAVIOR ---
+                // Makes it fade beautifully alongside the sliding animation
+                Behavior on opacity {
+                    NumberAnimation { duration: 250 }
+                }
                 Row {
                     anchors.centerIn: parent
                     spacing: 8 // Tightly spaces the input and its slider
@@ -808,7 +845,7 @@ Item {
                 radius: 10 // Perfectly round edges
 
                 color: pullTabMouse.pressed ? "#e5e5ea" : (pullTabMouse.containsMouse ? "#f4f4f4" : "#ffffff")
-                border.color: "#d1d1d6"
+                border.color: "#dddddd"
                 border.width: 1
 
                 // Attach it to the bottom of the settings pill!

@@ -6,11 +6,11 @@ Window {
     height: 600
     visible: true
     title: qsTr("Omen")
-
+    color: "#80ff0000"
     StackView {
         id: stackView
         anchors.fill: parent
-
+        background: null
         // This is the very first screen the app shows when it launches
         initialItem: "WelcomeScreen.qml"
 

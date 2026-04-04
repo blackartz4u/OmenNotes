@@ -36,7 +36,9 @@ set_target_properties(appOmenNotes PROPERTIES
 target_link_libraries(appOmenNotes
     PRIVATE Qt6::Quick
 )
-
+if (WIN32)
+    target_link_libraries(appOmenNotes PRIVATE dwmapi)
+endif()
 install(TARGETS appOmenNotes
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -7,13 +7,7 @@ Item {
 
 
     // A subtle gradient background for the welcome screen
-    Rectangle {
-        anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#ffffff" }
-            GradientStop { position: 1.0; color: "#f0f0f5" }
-        }
-    }
+
 
     ColumnLayout {
         anchors.centerIn: parent
