@@ -4,7 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import OmenNotes.Canvas
 import QtQuick.Effects
-
+import Qt5Compat.GraphicalEffects
 Item {
     id: root
     // Notice: NO 'anchors.fill: parent' here to keep the StackView happy!
@@ -139,27 +139,66 @@ Item {
 
                         IconButton {
                             icon: "📁+"
-                            mouse.onClicked: console.log("New Folder")
+                            mouse.onClicked: {
+                                NoteManager.addFolder("New Project")
+
+                            }
                         }
                         IconButton {
                             icon: "📄+"
                             mouse.onClicked: {
                                 // This adds to the Sidebar/Database, not the canvas!
-                                explorerModel.append({"name": "New Note " + (explorerModel.count + 1), "isFolder": false})
+                                NoteManager.addNote("Untitled Note")
                             }
                         }
                     }
                 }
+                // 1. The Mask Stencil (Place above the ListView)
+                Rectangle {
+                    id: listMask
+                    width: fileList.width
+                    height: fileList.height
+                    visible: false
 
+                    gradient: Gradient {
+                        // Start visible
+                        GradientStop { position: 0.0; color: "#ffffffff" }
+                        // Stay solid until the "Fade Zone" starts (roughly above the button)
+                        GradientStop { position: 0.65; color: "#ffffffff" }
+                        // SMOOTH TRANSITION: This is where the magic happens
+                        GradientStop { position: 0.9; color: "#00ffffff" }
+                        // Fully invisible behind the button
+                        GradientStop { position: 1.0; color: "#00ffffff" }
+                    }
+                }
                 // --- THE FILE TREE (Modern Glass List) ---
                 ListView {
                     id: fileList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
-                    model: explorerModel
-                    spacing: 8
 
+                    model: ExplorerModel
+                    spacing: 8
+                    footer: Item { height: 140 }
+
+                    // --- THE FIX: DIRECT OPACITY MASK ---
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: Item {
+                            width: fileList.width
+                            height: fileList.height
+                            Rectangle {
+                                anchors.fill: parent
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "white" }
+                                    GradientStop { position: 0.6; color: "white" }   // Solid area
+                                    GradientStop { position: 0.85; color: "transparent" } // Soft Fade
+                                    GradientStop { position: 1.0; color: "transparent" } // Invisible
+                                }
+                            }
+                        }
+                    }
                     delegate: Item {
                         id: delegateRoot
                         width: fileList.width
@@ -209,6 +248,7 @@ Item {
                             }
                         }
                     }
+
                 }
             }
 
@@ -218,7 +258,7 @@ Item {
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottomMargin: 30
-
+                z: 3
                 width: 160 // Slightly smaller to fit narrow sidebar widths
                 height: 46
                 radius: 23
@@ -276,7 +316,9 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.StackView.view.pop()
                 }
+
             }
+
         }
 
         // --- RIGHT CANVAS AREA ---
@@ -289,7 +331,7 @@ Item {
             property string activeTool: "pen"      // Can be "pen", "eraser", or "stroke_eraser"
             property color activeColor: "#000000"
             property var currentCanvas: null
-            property real activeBrushSize: 15.0
+            property real activeBrushSize: 5.0
             property real activeBrushOpacity: 1.0
             property bool isSettingsOpen: false
             // --- THE SCROLLABLE AREA (Optimized for Trackpad & Mouse) ---

@@ -1,10 +1,12 @@
+#include "database/ExplorerModel.h"
 #include <QSurfaceFormat>
 #include <QGuiApplication>
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QQmlApplicationEngine>
 #include <QWindow>
 #include "canvas/DrawingCanvas.h"
-
+#include "database/NoteManager.h"
 // THE WINDOWS API HEADERS
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -34,8 +36,17 @@ int main(int argc, char *argv[])
         &app, []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
 
     engine.loadFromModule("OmenNotes", "Main");
+    NoteManager noteManager;
+    noteManager.initDatabase(); // Force the tables to exist first!
 
-    // --- 3. INJECT WINDOWS PREMIUM STYLING (Blur + Dark Mode + Rounded Corners) ---
+    ExplorerModel *explorerModel = new ExplorerModel(&app);
+
+    // Connect them so the model knows to stay in sync
+    QObject::connect(&noteManager, &NoteManager::dataChanged,
+                     explorerModel, &ExplorerModel::updateQuery);
+
+    engine.rootContext()->setContextProperty("NoteManager", &noteManager);
+    engine.rootContext()->setContextProperty("ExplorerModel", explorerModel);
 #ifdef Q_OS_WIN
     if (!engine.rootObjects().isEmpty()) {
         QQuickWindow *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());

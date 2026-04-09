@@ -7,7 +7,7 @@ Window {
     visible: true
     title: qsTr("Omen")
 
-    color: "#80ff0000"
+    color: "transparent"
     StackView {
         id: stackView
         anchors.fill: parent
